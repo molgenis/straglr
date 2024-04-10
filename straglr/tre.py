@@ -240,8 +240,8 @@ class TREFinder:
             if p1 in rep2:
                 if float(rep2.count(p1) * len(p1)) / len(rep2) >= min_fraction:
                     return True
-                if self.iupac_match(p1, rep2):
-                    return True
+            if self.iupac_match(p1, rep2):
+                return True
 
         if same_pats:
             if check_same_pats(reps[0], reps[1]) or check_same_pats(reps[1], reps[0]):
