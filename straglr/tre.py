@@ -177,6 +177,7 @@ class TREFinder:
         return same_pats
 
     def iupac_match(self, seq1, seq2):
+        print("iupac!")
         iupac_codes = {
             'A': {'A'}, 'C': {'C'}, 'G': {'G'}, 'T': {'T'},
             'R': {'A', 'G'}, 'Y': {'C', 'T'}, 'S': {'G', 'C'},
@@ -192,7 +193,10 @@ class TREFinder:
 
         for base1, base2 in zip(seq1, seq2):
             if base1 in iupac_codes and base2 in iupac_codes:
+                print("iupac_codes[base1]")
+                print("iupac_codes[base2]")
                 if iupac_codes[base1].intersection(iupac_codes[base2]):
+                    print("iupac match!")
                     match_count += 1
 
         return match_count == len(seq1)
