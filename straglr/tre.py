@@ -191,10 +191,10 @@ class TREFinder:
 
         match_count = 0
 
+        print(seq1)
+        print(seq2)
         for base1, base2 in zip(seq1, seq2):
             if base1 in iupac_codes and base2 in iupac_codes:
-                print(base1)
-                print(base2)
                 if iupac_codes[base1].intersection(iupac_codes[base2]):
                     print("iupac match!")
                     match_count += 1
