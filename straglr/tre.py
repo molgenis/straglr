@@ -1294,7 +1294,7 @@ class TREFinder:
             allel1_ci_lower, allel1_ci_upper = ci[cols[5]]
             allel1_support = cols[6]
 
-            homzygous =  len(gt) == 1
+            homzygous = len(gt) == 1
 
             d_sum = 0
             d_n = 0
@@ -1308,6 +1308,7 @@ class TREFinder:
                     is_ref_allele = abs(allele1_repeat_count - ref_repeat_count) < 1
                     if is_ref_allele:
                         # No variant here
+                        print('Repeat count for repeat id: "{}" equals the reference genome.'.format(repeat_id))
                         pass
                     else:
                         output_vcf_body += "{}\t{}\t.\t{}\t<STR{}>\t.\tPASS\tSVTYPE=STR;END={};REF={};RL={};RU={};REPID={};VARID={}\tGT:SO:REPCN:REPCI:ADSP:ADFL:ADIR:LC\t1/1:SPANNING/SPANNING:{}/{}:{}-{}/{}-{}:{}/{}:0/0:0/0:{}\n".format(chrom, start_pos + 1, ref_allele, allele1_repeat_count, end_pos,  ref_repeat_count, ref_repeat_length, repeat_unit, repeat_id, variant_id, allele1_repeat_count, allele1_repeat_count, round(allel1_ci_lower), round(allel1_ci_upper), round(allel1_ci_lower), round(allel1_ci_upper), allel1_support / 2, allel1_support / 2, lc)
