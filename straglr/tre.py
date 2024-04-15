@@ -1218,7 +1218,7 @@ class TREFinder:
                     continue
                 cols = line.rstrip().split()
                 if len(cols) >= 6:
-                    loci["{}:{}-{}".format(cols[0], cols[1], cols[2])] = (cols[4], cols[5])
+                    loci["{}:{}-{}".format(cols[0], cols[1], cols[2])] = (cols[3], cols[4], cols[5])
 
 
         VCF_headers = ["CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO", "FORMAT"] + [sample]
@@ -1242,6 +1242,7 @@ class TREFinder:
         output_vcf_header += '##INFO=<ID=RU,Number=1,Type=String,Description="Repeat unit in the reference orientation">\n'
         output_vcf_header += '##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">\n'
         output_vcf_header += '##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant described in this record">\n'
+        output_vcf_header += '##INFO=<ID=RUMATCH,Number=1,Type=Integer,Description="Boolean stating if the called RU matched the bed RU">\n'
         output_vcf_header += '##FILTER=<ID=LowDepth,Description="The overall locus depth is below 10x or number of reads spanning one or both breakends is below 5">\n'
         output_vcf_header += '##FILTER=<ID=PASS,Description="All filters passed">\n'
         output_vcf_header += '##FORMAT=<ID=AD,Number=.,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">\n'
@@ -1289,7 +1290,7 @@ class TREFinder:
             ref_seq = pyRef.fetch(reference=chrom, start=start_pos, end=end_pos)
             ref_allele = ref_seq[0]
             ref_repeat_count = int(ref_repeat_length / len(repeat_unit))
-            repeat_id, variant_id = loci["{}:{}-{}".format(chrom, start_pos, end_pos)]
+            bed_repeat_unit, repeat_id, variant_id = loci["{}:{}-{}".format(chrom, start_pos, end_pos)]
 
             allele1_repeat_count = round(cols[5])
             output_vcf_header_alt.add('##ALT=<ID=STR{},Description="Allele comprised of {} repeat units">\n'.format(allele1_repeat_count, allele1_repeat_count))
@@ -1306,6 +1307,8 @@ class TREFinder:
             if d_n > 0:
                 lc = int(d_sum / d_n)
 
+                is_ru_match = "1" if self.is_matching_repeat_unit(repeat_unit, bed_repeat_unit) else "0"
+
                 if homzygous:
                     is_ref_allele = abs(allele1_repeat_count - ref_repeat_count) < 1
                     if is_ref_allele:
@@ -1313,7 +1316,7 @@ class TREFinder:
                         print('Repeat count for repeat id: "{}" equals the reference genome.'.format(repeat_id))
                         pass
                     else:
-                        output_vcf_body += "{}\t{}\t.\t{}\t<STR{}>\t.\tPASS\tSVTYPE=STR;END={};REF={};RL={};RU={};REPID={};VARID={}\tGT:SO:REPCN:REPCI:ADSP:ADFL:ADIR:LC\t1/1:SPANNING/SPANNING:{}/{}:{}-{}/{}-{}:{}/{}:0/0:0/0:{}\n".format(chrom, start_pos + 1, ref_allele, allele1_repeat_count, end_pos,  ref_repeat_count, ref_repeat_length, repeat_unit, repeat_id, variant_id, allele1_repeat_count, allele1_repeat_count, round(allel1_ci_lower), round(allel1_ci_upper), round(allel1_ci_lower), round(allel1_ci_upper), allel1_support / 2, allel1_support / 2, lc)
+                        output_vcf_body += "{}\t{}\t.\t{}\t<STR{}>\t.\tPASS\tSVTYPE=STR;END={};REF={};RL={};RU={};REPID={};VARID={};RUMATCH={}\tGT:SO:REPCN:REPCI:ADSP:ADFL:ADIR:LC\t1/1:SPANNING/SPANNING:{}/{}:{}-{}/{}-{}:{}/{}:0/0:0/0:{}\n".format(chrom, start_pos + 1, ref_allele, allele1_repeat_count, end_pos,  ref_repeat_count, ref_repeat_length, repeat_unit, repeat_id, variant_id, is_ru_match, allele1_repeat_count, allele1_repeat_count, round(allel1_ci_lower), round(allel1_ci_upper), round(allel1_ci_lower), round(allel1_ci_upper), allel1_support / 2, allel1_support / 2, lc)
 
                 else:
                     allele2_repeat_count = round(cols[8])
@@ -1321,7 +1324,7 @@ class TREFinder:
                     allel2_ci_lower, allel2_ci_upper = ci[cols[8]]
                     allel2_support = cols[9]
 
-                    output_vcf_body += "{}\t{}\t.\t{}\t<STR{}>,<STR{}>\t.\tPASS\tSVTYPE=STR;END={};REF={};RL={};RU={};REPID={};VARID={}\tGT:SO:REPCN:REPCI:ADSP:ADFL:ADIR:LC\t1/2:SPANNING/SPANNING:{}/{}:{}-{}/{}-{}:{}/{}:0/0:0/0:{}\n".format(chrom, start_pos + 1, ref_allele, allele1_repeat_count, allele2_repeat_count, end_pos,  ref_repeat_count, ref_repeat_length, repeat_unit, repeat_id, variant_id, allele1_repeat_count, allele2_repeat_count, round(allel1_ci_lower), round(allel1_ci_upper), round(allel2_ci_lower), round(allel2_ci_upper), allel1_support, allel2_support, lc)
+                    output_vcf_body += "{}\t{}\t.\t{}\t<STR{}>,<STR{}>\t.\tPASS\tSVTYPE=STR;END={};REF={};RL={};RU={};REPID={};VARID={};RUMATCH={}\tGT:SO:REPCN:REPCI:ADSP:ADFL:ADIR:LC\t1/2:SPANNING/SPANNING:{}/{}:{}-{}/{}-{}:{}/{}:0/0:0/0:{}\n".format(chrom, start_pos + 1, ref_allele, allele1_repeat_count, allele2_repeat_count, end_pos,  ref_repeat_count, ref_repeat_length, repeat_unit, repeat_id, variant_id, is_ru_match, allele1_repeat_count, allele2_repeat_count, round(allel1_ci_lower), round(allel1_ci_upper), round(allel2_ci_lower), round(allel2_ci_upper), allel1_support, allel2_support, lc)
             else:
                 print('Locus coverage of zero encountered for repeat id: "{}"'.format(repeat_id))
         pyRef.close()
@@ -1339,3 +1342,14 @@ class TREFinder:
             for ff in self.tmp_files:
                 if os.path.exists(ff):
                     os.remove(ff)
+
+    def is_matching_repeat_unit(self, repeat_unit, bed_repeat_unit):
+        perms1 = []
+        for i in range(len(repeat_unit)):
+            pat = repeat_unit[i:] + repeat_unit[:i]
+            perms1.append(pat)
+
+        for p1 in perms1:
+            if self.iupac_match(p1, bed_repeat_unit):
+                return True
+        return False
