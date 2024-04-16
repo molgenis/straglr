@@ -1235,14 +1235,14 @@ class TREFinder:
 
         output_vcf_header += '##reference=file://{}'.format(genome_fasta)
         output_vcf_header += '##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant">\n'
-        output_vcf_header +='##INFO=<ID=REF,Number=1,Type=Integer,Description="Reference copy number">\n'
+        output_vcf_header += '##INFO=<ID=REF,Number=1,Type=Integer,Description="Reference copy number">\n'
         output_vcf_header += '##INFO=<ID=REPID,Number=1,Type=String,Description="Repeat identifier as specified in the variant catalog">\n'
         output_vcf_header += '##INFO=<ID=VARID,Number=1,Type=String,Description="Variant identifier as specified in the variant catalog">\n'
         output_vcf_header += '##INFO=<ID=RL,Number=1,Type=Integer,Description="Reference length in bp">\n'
         output_vcf_header += '##INFO=<ID=RU,Number=1,Type=String,Description="Repeat unit in the reference orientation">\n'
         output_vcf_header += '##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">\n'
         output_vcf_header += '##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant described in this record">\n'
-        output_vcf_header += '##INFO=<ID=RUMATCH,Number=1,Type=Integer,Description="Boolean stating if the called RU matched the bed RU">\n'
+        output_vcf_header += '##INFO=<ID=RUMATCH,Number=0,Type=Flag,Description="Flag indicating if the called repeat unit matched the repeat unit in the loci bed file.">\n'
         output_vcf_header += '##FILTER=<ID=LowDepth,Description="The overall locus depth is below 10x or number of reads spanning one or both breakends is below 5">\n'
         output_vcf_header += '##FILTER=<ID=PASS,Description="All filters passed">\n'
         output_vcf_header += '##FORMAT=<ID=AD,Number=.,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">\n'
@@ -1316,7 +1316,10 @@ class TREFinder:
                         print('Repeat count for repeat id: "{}" equals the reference genome.'.format(repeat_id))
                         pass
                     else:
-                        output_vcf_body += "{}\t{}\t.\t{}\t<STR{}>\t.\tPASS\tSVTYPE=STR;END={};REF={};RL={};RU={};REPID={};VARID={};RUMATCH={}\tGT:SO:REPCN:REPCI:ADSP:ADFL:ADIR:LC\t1/1:SPANNING/SPANNING:{}/{}:{}-{}/{}-{}:{}/{}:0/0:0/0:{}\n".format(chrom, start_pos + 1, ref_allele, allele1_repeat_count, end_pos,  ref_repeat_count, ref_repeat_length, repeat_unit, repeat_id, variant_id, is_ru_match, allele1_repeat_count, allele1_repeat_count, round(allel1_ci_lower), round(allel1_ci_upper), round(allel1_ci_lower), round(allel1_ci_upper), allel1_support / 2, allel1_support / 2, lc)
+                        if is_ru_match:
+                            output_vcf_body += "{}\t{}\t.\t{}\t<STR{}>\t.\tPASS\tSVTYPE=STR;END={};REF={};RL={};RU={};REPID={};VARID={};RUMATCH\tGT:SO:REPCN:REPCI:ADSP:ADFL:ADIR:LC\t1/1:SPANNING/SPANNING:{}/{}:{}-{}/{}-{}:{}/{}:0/0:0/0:{}\n".format(chrom, start_pos + 1, ref_allele, allele1_repeat_count, end_pos,  ref_repeat_count, ref_repeat_length, repeat_unit, repeat_id, variant_id, allele1_repeat_count, allele1_repeat_count, round(allel1_ci_lower), round(allel1_ci_upper), round(allel1_ci_lower), round(allel1_ci_upper), allel1_support / 2, allel1_support / 2, lc)
+                        else:
+                            output_vcf_body += "{}\t{}\t.\t{}\t<STR{}>\t.\tPASS\tSVTYPE=STR;END={};REF={};RL={};RU={};REPID={};VARID={}\tGT:SO:REPCN:REPCI:ADSP:ADFL:ADIR:LC\t1/1:SPANNING/SPANNING:{}/{}:{}-{}/{}-{}:{}/{}:0/0:0/0:{}\n".format(chrom, start_pos + 1, ref_allele, allele1_repeat_count, end_pos,  ref_repeat_count, ref_repeat_length, repeat_unit, repeat_id, variant_id, allele1_repeat_count, allele1_repeat_count, round(allel1_ci_lower), round(allel1_ci_upper), round(allel1_ci_lower), round(allel1_ci_upper), allel1_support / 2, allel1_support / 2, lc)
 
                 else:
                     allele2_repeat_count = round(cols[8])
@@ -1324,7 +1327,10 @@ class TREFinder:
                     allel2_ci_lower, allel2_ci_upper = ci[cols[8]]
                     allel2_support = cols[9]
 
-                    output_vcf_body += "{}\t{}\t.\t{}\t<STR{}>,<STR{}>\t.\tPASS\tSVTYPE=STR;END={};REF={};RL={};RU={};REPID={};VARID={};RUMATCH={}\tGT:SO:REPCN:REPCI:ADSP:ADFL:ADIR:LC\t1/2:SPANNING/SPANNING:{}/{}:{}-{}/{}-{}:{}/{}:0/0:0/0:{}\n".format(chrom, start_pos + 1, ref_allele, allele1_repeat_count, allele2_repeat_count, end_pos,  ref_repeat_count, ref_repeat_length, repeat_unit, repeat_id, variant_id, is_ru_match, allele1_repeat_count, allele2_repeat_count, round(allel1_ci_lower), round(allel1_ci_upper), round(allel2_ci_lower), round(allel2_ci_upper), allel1_support, allel2_support, lc)
+                    if is_ru_match:
+                        output_vcf_body += "{}\t{}\t.\t{}\t<STR{}>,<STR{}>\t.\tPASS\tSVTYPE=STR;END={};REF={};RL={};RU={};REPID={};VARID={};RUMATCH\tGT:SO:REPCN:REPCI:ADSP:ADFL:ADIR:LC\t1/2:SPANNING/SPANNING:{}/{}:{}-{}/{}-{}:{}/{}:0/0:0/0:{}\n".format(chrom, start_pos + 1, ref_allele, allele1_repeat_count, allele2_repeat_count, end_pos,  ref_repeat_count, ref_repeat_length, repeat_unit, repeat_id, variant_id, allele1_repeat_count, allele2_repeat_count, round(allel1_ci_lower), round(allel1_ci_upper), round(allel2_ci_lower), round(allel2_ci_upper), allel1_support, allel2_support, lc)
+                    else:
+                        output_vcf_body += "{}\t{}\t.\t{}\t<STR{}>,<STR{}>\t.\tPASS\tSVTYPE=STR;END={};REF={};RL={};RU={};REPID={};VARID={}\tGT:SO:REPCN:REPCI:ADSP:ADFL:ADIR:LC\t1/2:SPANNING/SPANNING:{}/{}:{}-{}/{}-{}:{}/{}:0/0:0/0:{}\n".format(chrom, start_pos + 1, ref_allele, allele1_repeat_count, allele2_repeat_count, end_pos, ref_repeat_count, ref_repeat_length, repeat_unit, repeat_id, variant_id, allele1_repeat_count, allele2_repeat_count, round(allel1_ci_lower), round(allel1_ci_upper), round(allel2_ci_lower), round(allel2_ci_upper), allel1_support, allel2_support, lc)
             else:
                 print('Locus coverage of zero encountered for repeat id: "{}"'.format(repeat_id))
         pyRef.close()
