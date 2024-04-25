@@ -1307,7 +1307,7 @@ class TREFinder:
             if d_n > 0:
                 lc = int(d_sum / d_n)
 
-                is_ru_match = "1" if self.is_matching_repeat_unit(repeat_unit, bed_repeat_unit) else "0"
+                is_ru_match = self.is_matching_repeat_unit(repeat_unit, bed_repeat_unit)
 
                 if homzygous:
                     is_ref_allele = abs(allele1_repeat_count - ref_repeat_count) < 1
