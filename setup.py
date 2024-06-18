@@ -26,7 +26,7 @@ setup(
         'pybedtools==0.9.1',
         'numpy==1.26.4',
         'pathos==0.3.2',
-        'scikit-learn==1.4.0',
+        'scikit-learn==1.5.0',
         'scipy==1.13.0',
         'natsort==8.4.0'
         ],
