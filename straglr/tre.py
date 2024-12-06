@@ -218,8 +218,6 @@ class TREFinder:
             rep1, rep2 = reps[0], reps[1]
         else:
             rep2, rep1 = reps[0], reps[1]
-        if self.iupac_match(rep1, rep2):
-            return True
 
         perms1 = []
         for i in range(len(rep1)):
@@ -230,6 +228,8 @@ class TREFinder:
             if p1 in rep2:
                 if float(rep2.count(p1) * len(p1)) / len(rep2) >= min_fraction:
                     return True
+            if self.iupac_match(p1, rep2):
+                return True
 
         if same_pats:
             if check_same_pats(reps[0], reps[1]) or check_same_pats(reps[1], reps[0]):
@@ -1218,7 +1218,7 @@ class TREFinder:
                     continue
                 cols = line.rstrip().split()
                 if len(cols) >= 6:
-                    loci["{}:{}-{}".format(cols[0], cols[1], cols[2])] = (cols[4], cols[5])
+                    loci["{}:{}-{}".format(cols[0], cols[1], cols[2])] = (cols[3], cols[4], cols[5])
 
 
         VCF_headers = ["CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO", "FORMAT"] + [sample]
@@ -1235,13 +1235,14 @@ class TREFinder:
 
         output_vcf_header += '##reference=file://{}'.format(genome_fasta)
         output_vcf_header += '##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant">\n'
-        output_vcf_header +='##INFO=<ID=REF,Number=1,Type=Integer,Description="Reference copy number">\n'
+        output_vcf_header += '##INFO=<ID=REF,Number=1,Type=Integer,Description="Reference copy number">\n'
         output_vcf_header += '##INFO=<ID=REPID,Number=1,Type=String,Description="Repeat identifier as specified in the variant catalog">\n'
         output_vcf_header += '##INFO=<ID=VARID,Number=1,Type=String,Description="Variant identifier as specified in the variant catalog">\n'
         output_vcf_header += '##INFO=<ID=RL,Number=1,Type=Integer,Description="Reference length in bp">\n'
         output_vcf_header += '##INFO=<ID=RU,Number=1,Type=String,Description="Repeat unit in the reference orientation">\n'
         output_vcf_header += '##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">\n'
         output_vcf_header += '##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant described in this record">\n'
+        output_vcf_header += '##INFO=<ID=RUMATCH,Number=0,Type=Flag,Description="Flag indicating if the called repeat unit matched the repeat unit in the loci bed file.">\n'
         output_vcf_header += '##FILTER=<ID=LowDepth,Description="The overall locus depth is below 10x or number of reads spanning one or both breakends is below 5">\n'
         output_vcf_header += '##FILTER=<ID=PASS,Description="All filters passed">\n'
         output_vcf_header += '##FORMAT=<ID=AD,Number=.,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">\n'
@@ -1255,6 +1256,8 @@ class TREFinder:
         output_vcf_header += '##FORMAT=<ID=SO,Number=1,Type=String,Description="Type of reads that support the allele; can be SPANNING, FLANKING, or INREPEAT meaning that the reads span, flank, or are fully contained in the repeat">\n'
 
         for variant in natsorted(variants, key=itemgetter(0, 1, 2)):
+            if not variant[5]:
+                continue
             cols = variant[:3] + [variant[4]]
             sizes = []
             copy_numbers = []
@@ -1287,44 +1290,49 @@ class TREFinder:
             ref_seq = pyRef.fetch(reference=chrom, start=start_pos, end=end_pos)
             ref_allele = ref_seq[0]
             ref_repeat_count = int(ref_repeat_length / len(repeat_unit))
-            repeat_id, variant_id = loci["{}:{}-{}".format(chrom, start_pos, end_pos)]
+            bed_repeat_unit, repeat_id, variant_id = loci["{}:{}-{}".format(chrom, start_pos, end_pos)]
 
             allele1_repeat_count = round(cols[5])
-
+            output_vcf_header_alt.add('##ALT=<ID=STR{},Description="Allele comprised of {} repeat units">\n'.format(allele1_repeat_count, allele1_repeat_count))
             allel1_ci_lower, allel1_ci_upper = ci[cols[5]]
             allel1_support = cols[6]
 
-            homzygous =  len(gt) == 1
+            homzygous = len(gt) == 1
 
             d_sum = 0
             d_n = 0
             for pileupcolumn in pyBAM.pileup(chrom, start_pos, end_pos, truncate=True):
                 d_sum += pileupcolumn.n
                 d_n += 1
+            if d_n > 0:
+                lc = int(d_sum / d_n)
 
-            if d_n == 0:
-                print("Warning: no primary alignments found for {}. Skipping locus.".format(repeat_id))
-                continue
+                is_ru_match = self.is_matching_repeat_unit(repeat_unit, bed_repeat_unit)
 
-            lc = int(d_sum / d_n)
+                if homzygous:
+                    is_ref_allele = abs(allele1_repeat_count - ref_repeat_count) < 1
+                    if is_ref_allele:
+                        # No variant here
+                        print('Repeat count for repeat id: "{}" equals the reference genome.'.format(repeat_id))
+                        pass
+                    else:
+                        if is_ru_match:
+                            output_vcf_body += "{}\t{}\t.\t{}\t<STR{}>\t.\tPASS\tSVTYPE=STR;END={};REF={};RL={};RU={};REPID={};VARID={};RUMATCH\tGT:SO:REPCN:REPCI:ADSP:ADFL:ADIR:LC\t1/1:SPANNING/SPANNING:{}/{}:{}-{}/{}-{}:{}/{}:0/0:0/0:{}\n".format(chrom, start_pos + 1, ref_allele, allele1_repeat_count, end_pos,  ref_repeat_count, ref_repeat_length, repeat_unit, repeat_id, variant_id, allele1_repeat_count, allele1_repeat_count, round(allel1_ci_lower), round(allel1_ci_upper), round(allel1_ci_lower), round(allel1_ci_upper), allel1_support / 2, allel1_support / 2, lc)
+                        else:
+                            output_vcf_body += "{}\t{}\t.\t{}\t<STR{}>\t.\tPASS\tSVTYPE=STR;END={};REF={};RL={};RU={};REPID={};VARID={}\tGT:SO:REPCN:REPCI:ADSP:ADFL:ADIR:LC\t1/1:SPANNING/SPANNING:{}/{}:{}-{}/{}-{}:{}/{}:0/0:0/0:{}\n".format(chrom, start_pos + 1, ref_allele, allele1_repeat_count, end_pos,  ref_repeat_count, ref_repeat_length, repeat_unit, repeat_id, variant_id, allele1_repeat_count, allele1_repeat_count, round(allel1_ci_lower), round(allel1_ci_upper), round(allel1_ci_lower), round(allel1_ci_upper), allel1_support / 2, allel1_support / 2, lc)
 
-            output_vcf_header_alt.add('##ALT=<ID=STR{},Description="Allele comprised of {} repeat units">\n'.format(allele1_repeat_count, allele1_repeat_count))
-            if homzygous:
-                is_ref_allele = abs(allele1_repeat_count - ref_repeat_count) < 1
-                if is_ref_allele:
-                    # No variant here
-                    pass
                 else:
-                    output_vcf_body += "{}\t{}\t.\t{}\t<STR{}>\t.\tPASS\tSVTYPE=DUP;END={};REF={};RL={};RU={};REPID={};VARID={}\tGT:SO:REPCN:REPCI:ADSP:ADFL:ADIR:LC\t1/1:SPANNING/SPANNING:{}/{}:{}-{}/{}-{}:{}/{}:0/0:0/0:{}\n".format(chrom, start_pos + 1, ref_allele, allele1_repeat_count, end_pos,  ref_repeat_count, ref_repeat_length, repeat_unit, repeat_id, variant_id, allele1_repeat_count, allele1_repeat_count, round(allel1_ci_lower), round(allel1_ci_upper), round(allel1_ci_lower), round(allel1_ci_upper), allel1_support / 2, allel1_support / 2, lc)
+                    allele2_repeat_count = round(cols[8])
+                    output_vcf_header_alt.add('##ALT=<ID=STR{},Description="Allele comprised of {} repeat units">\n'.format(allele2_repeat_count, allele2_repeat_count))
+                    allel2_ci_lower, allel2_ci_upper = ci[cols[8]]
+                    allel2_support = cols[9]
 
+                    if is_ru_match:
+                        output_vcf_body += "{}\t{}\t.\t{}\t<STR{}>,<STR{}>\t.\tPASS\tSVTYPE=STR;END={};REF={};RL={};RU={};REPID={};VARID={};RUMATCH\tGT:SO:REPCN:REPCI:ADSP:ADFL:ADIR:LC\t1/2:SPANNING/SPANNING:{}/{}:{}-{}/{}-{}:{}/{}:0/0:0/0:{}\n".format(chrom, start_pos + 1, ref_allele, allele1_repeat_count, allele2_repeat_count, end_pos,  ref_repeat_count, ref_repeat_length, repeat_unit, repeat_id, variant_id, allele1_repeat_count, allele2_repeat_count, round(allel1_ci_lower), round(allel1_ci_upper), round(allel2_ci_lower), round(allel2_ci_upper), allel1_support, allel2_support, lc)
+                    else:
+                        output_vcf_body += "{}\t{}\t.\t{}\t<STR{}>,<STR{}>\t.\tPASS\tSVTYPE=STR;END={};REF={};RL={};RU={};REPID={};VARID={}\tGT:SO:REPCN:REPCI:ADSP:ADFL:ADIR:LC\t1/2:SPANNING/SPANNING:{}/{}:{}-{}/{}-{}:{}/{}:0/0:0/0:{}\n".format(chrom, start_pos + 1, ref_allele, allele1_repeat_count, allele2_repeat_count, end_pos, ref_repeat_count, ref_repeat_length, repeat_unit, repeat_id, variant_id, allele1_repeat_count, allele2_repeat_count, round(allel1_ci_lower), round(allel1_ci_upper), round(allel2_ci_lower), round(allel2_ci_upper), allel1_support, allel2_support, lc)
             else:
-                allele2_repeat_count = round(cols[8])
-                output_vcf_header_alt.add('##ALT=<ID=STR{},Description="Allele comprised of {} repeat units">\n'.format(allele2_repeat_count, allele2_repeat_count))
-                allel2_ci_lower, allel2_ci_upper = ci[cols[8]]
-                allel2_support = cols[9]
-
-                output_vcf_body += "{}\t{}\t.\t{}\t<STR{}>,<STR{}>\t.\tPASS\tSVTYPE=DUP;END={};REF={};RL={};RU={};REPID={};VARID={}\tGT:SO:REPCN:REPCI:ADSP:ADFL:ADIR:LC\t1/2:SPANNING/SPANNING:{}/{}:{}-{}/{}-{}:{}/{}:0/0:0/0:{}\n".format(chrom, start_pos + 1, ref_allele, allele1_repeat_count, allele2_repeat_count, end_pos,  ref_repeat_count, ref_repeat_length, repeat_unit, repeat_id, variant_id, allele1_repeat_count, allele2_repeat_count, round(allel1_ci_lower), round(allel1_ci_upper), round(allel2_ci_lower), round(allel2_ci_upper), allel1_support, allel2_support, lc)
-
+                print('Locus coverage of zero encountered for repeat id: "{}"'.format(repeat_id))
         pyRef.close()
         pyBAM.close()
 
@@ -1340,3 +1348,14 @@ class TREFinder:
             for ff in self.tmp_files:
                 if os.path.exists(ff):
                     os.remove(ff)
+
+    def is_matching_repeat_unit(self, repeat_unit, bed_repeat_unit):
+        perms1 = []
+        for i in range(len(repeat_unit)):
+            pat = repeat_unit[i:] + repeat_unit[:i]
+            perms1.append(pat)
+
+        for p1 in perms1:
+            if self.iupac_match(p1, bed_repeat_unit):
+                return True
+        return False
