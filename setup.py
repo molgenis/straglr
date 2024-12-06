@@ -1,8 +1,12 @@
 from setuptools import setup
+from straglr import __version__
+
+##remove postfix here because setuptools does not like it
+version = __version__.split('-')[0]
 
 setup(
     name='straglr',
-    #remove version here because the setuptools refuses the postfix
+    version=version,
     description='Straglr',
     long_description='Short tandem repeat genotyping using long reads',
     url='https://github.com/bcgsc/straglr.git',
