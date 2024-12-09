@@ -1,13 +1,12 @@
-import os
-import sys
-from setuptools import setup, find_packages
-#sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/stragler')
-
+from setuptools import setup
 from straglr import __version__
+
+##remove postfix here because setuptools does not like it
+version = __version__.split('-')[0]
 
 setup(
     name='straglr',
-    version=__version__,
+    version=version,
     description='Straglr',
     long_description='Short tandem repeat genotyping using long reads',
     url='https://github.com/bcgsc/straglr.git',
@@ -22,12 +21,12 @@ setup(
         ],
     packages=['straglr'],
     install_requires = [
-        'pysam==0.22.0',
-        'pybedtools==0.9.1',
+        'pysam==0.22.1',
+        'pybedtools==0.10.0',
         'numpy==1.26.4',
-        'pathos==0.3.2',
-        'scikit-learn==1.4.0',
-        'scipy==1.13.0',
+        'pathos==0.3.3',
+        'scikit-learn==1.5.2',
+        'scipy==1.14.1',
         'natsort==8.4.0'
         ],
     entry_points ={
