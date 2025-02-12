@@ -1233,7 +1233,7 @@ class TREFinder:
         for contig in sorted(zip(pyRef.references, pyRef.lengths), key=lambda x: x[0]):
             output_vcf_header += "##contig=<ID={},length={}>\n".format(contig[0], contig[1])
 
-        output_vcf_header += '##reference=file://{}'.format(genome_fasta)
+        output_vcf_header += '##reference=file://{}'.format(genome_fasta)+'\n'
         output_vcf_header += '##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant">\n'
         output_vcf_header += '##INFO=<ID=REF,Number=1,Type=Integer,Description="Reference copy number">\n'
         output_vcf_header += '##INFO=<ID=REPID,Number=1,Type=String,Description="Repeat identifier as specified in the variant catalog">\n'
